@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>四軌節奏譜面</title>
+<style>
+:root{--bg:#fff7ec;--fg:#2b1d12;--card:#fff;--line:#e3d2bb;--accent:#d9381e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1a1410;--fg:#f6ead8;--card:#261d16;--line:#4a3a2c;--accent:#ff6a4d}}
+:root[data-theme="dark"]{--bg:#1a1410;--fg:#f6ead8;--card:#261d16;--line:#4a3a2c;--accent:#ff6a4d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif}
+main{max-width:960px;margin:0 auto;padding:16px}
+h1{margin:0 0 4px;font-size:1.6rem;color:var(--accent)}
+p.sub{margin:0 0 12px;opacity:.75;font-size:.9rem}
+.stage{background:var(--card);border:2px solid var(--line);border-radius:14px;overflow:hidden}
+.hud{display:flex;gap:18px;padding:8px 14px;font-weight:700;border-bottom:1px solid var(--line);flex-wrap:wrap}
+canvas{display:block;width:100%;height:auto;touch-action:none}
+.pads{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+.pad{padding:18px 4px;border:0;border-radius:12px;font-size:1rem;font-weight:700;color:#fff;user-select:none;touch-action:manipulation}
+.pad:active{filter:brightness(1.25);transform:scale(.97)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+textarea{width:100%;height:190px;font-family:ui-monospace,Menlo,monospace;font-size:.8rem;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px;white-space:pre;overflow:auto}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+button.main{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:10px 18px;font-weight:700;font-size:1rem}
+.sec{background:transparent;color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px 14px;cursor:pointer}
+small{opacity:.75;line-height:1.7;display:block;margin-top:8px}
+code{background:var(--bg);padding:1px 5px;border-radius:4px}
+[hidden]{display:none!important}
+.songs{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-top:8px}
+.song{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:22px 18px;text-align:left;color:var(--fg);cursor:pointer;font-family:inherit}
+.song:hover,.song:focus-visible{border-color:var(--accent);transform:translateY(-2px)}
+.song .em{font-size:3rem;display:block}
+.song b{font-size:1.5rem;display:block;margin:6px 0 4px}
+.song span.d{opacity:.7;font-size:.95rem}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:4px}.top h1{margin:0}
+</style>
+</head>
+<body>
+<main>
+<section id="home">
+<h1>🥁 選擇歌曲</h1>
+<p class="sub">點選一首歌,開始用樂器跟著節奏敲打。</p>
+<div class="songs" id="songs"></div>
+</section>
+<section id="game" hidden>
+<div class="top"><button class="sec" id="back">← 選歌</button><h1 id="gtitle"></h1></div>
+<p class="sub" id="desc"></p>
+<div class="stage">
+  <div class="hud"><span>分數 <b id="sc">0</b></span><span>連擊 <b id="cb">0</b></span><span>良 <b id="g1">0</b></span><span>可 <b id="g2">0</b></span><span>不可 <b id="g3">0</b></span></div>
+  <canvas id="cv" width="900" height="416"></canvas>
+</div>
+<div class="pads" id="pads"></div>
+<div class="panel">
+  <b>樂譜</b>
+  <textarea id="chart" spellcheck="false"></textarea>
+  <div class="row">
+    <button class="main" id="go">▶ 開始</button>
+    <button class="sec" id="stop">■ 停止</button>
+    <button class="sec" id="tg">✎ 顯示/編輯譜面</button>
+    <label class="sec">載入 .txt 譜面<input type="file" id="file" accept=".txt" hidden></label>
+    <label class="sec">🎵 匯入音樂<input type="file" id="mfile" accept="audio/*" hidden></label>
+    <span id="mname" style="font-size:.85rem;opacity:.75">未匯入音樂</span>
+    <label style="font-size:.85rem">偏移(秒) <input type="number" id="moff" value="0" step="0.05" style="width:80px;padding:6px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)"></label>
+  </div>
+  <small id="help">
+    <code>BPM:120</code> 設定速度(4/4 拍)。以 <code>1:</code> <code>2:</code> <code>3:</code> <code>4:</code> 開頭分別寫四條軌道的譜。<br>
+    每小節以逗號 <code>,</code> 結尾,小節內字元平均分配時間;<code>1</code> = 敲擊,<code>0</code> = 休止。<code>#</code> 開頭為註解。<br>歌詞軌道以 <code>L:</code> 開頭,同一小節內用 <code>/</code> 把歌詞平均切段(空段代表不唱),例如 <code>L: 你/好//世界,</code>;歌詞不需敲擊,會隨節奏捲動,唱到的字會變色。<br>匯入音樂後,請把譜面的 <code>BPM:</code> 設成歌曲的速度;「偏移」是譜面第一拍對應歌曲的秒數(歌曲前奏較長就填正數)。音樂只在你的瀏覽器裡播放,不會上傳。<br>
+    四軌各自獨立,同一時間點可以多軌同時有音符。鍵盤 D / F / J / K 對應由上到下的軌道,也可直接點畫面軌道或下方按鈕。
+  </small>
+</div>
+</section>
+</main>
+<script>const JB64="SUQzBAAAAAABClRYWFgAAAASAAADbWFqb3JfYnJhbmQAaXNvbQBUWFhYAAAAEwAAA21pbm9yX3ZlcnNpb24ANTEyAFRYWFgAAAAkAAADY29tcGF0aWJsZV9icmFuZHMAaXNvbWlzbzJhdmMxbXA0MQBUU1NFAAAADwAAA0xhdmY2MC4xNi4xMDAAAAAAAAAAAAAAAP/7cMAAAAAAAAAAAAAAAAAAAAAAAEluZm8AAAAPAAAGlgAIEbYAAwYICw0PEhQXGh0fIiQmKSsuMDQ2OTs+QEJFR0pNUFJVV1lcXmFjZ2lsbnFzdXh6fYCDhYiKjI+RlJaanJ+hpKaoq62ws7a4u72/wsTHyc3P0tTX2dve4OPm6evu8PL19/r8AAAAAExhdmM2MC4zMQAAAAAAAAAAAAAAACQFEAAAAAAACBG2CudZZwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/+3DEAAAO8GFEFPYACm6nK+se8AIegeghCELsScHOJmqiDi5lzQ9D0PUcZOABgHEcnn687Mz88WGBIEAGgNCZUwMHOve97rHKCPAA8PD+hgAAAAAHh4eHhgAAAAAHh4eHhgAAAAAHh4eHhgAAAAAHh4eHreAAAAHh4eHhgAAAAgPDw8PSAAAI94eHn6AAUlVUbjkbckkjYJeK6AIBmCBh/ABwjRVjNAH4ewYgwjfOMmyfLEuTeRqEvIuzqeq981Q0YYKEtiwF8xe5ovcuT2qmyfiljVc0gdTMedSBL8jFbVEFHu8lbxV0xAjJGL40+cxL1vnetw97p9SeFDxX7pd5n7fWze//y/+67zFXGY8e26ZzHs/h+sm9f/v6uESNIYCcVKvCpVWP9qoABJqMQJDyonUHVCJQBQj0//tyxAgDEL2dTH2YAAIUM6lJpJbZgCeFhTIdOhRe4we40biSs6SRFSdGVJccsiBidKpAiKk6MqSJeIsBaLxETUmS2ozJkrKOm5hrKCCdSlUiev2ZbO/qUpSlm6002VPtXou01ZNT3Wmhm7u1da1Ktv+pLo1butnUgptBdqv6lKV9C9v1qszf61KRPAMpZJAMfSRZElAVNKxjjxA8mJiAQV5IYJR6r2l3hwDDX1UPLinb2YPjAser4QXFbU24kOTsSJJdYFEXiwahCQDzrpf/hxaWzzup3ruUynP9HM7qJEyrRGKyy7sh1V7Hf1pU+hFyEqiuzVTzmIIi476pU+f9XdHk1nzyOLxN6oRj6o4Oq7lAxBZKLhRAkRaC/iLAlwXRSIaNgB3jEZ
